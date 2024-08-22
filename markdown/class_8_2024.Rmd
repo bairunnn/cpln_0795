@@ -1,7 +1,7 @@
 ---
-title: "CPLN 0795 - Class 8"
-author: "Michael Fichman"
-date: "2024-08-19"
+title: "MUSA 7950 Class 8"
+author: "Edited by BR"
+date: "2024-08-22"
 output: html_document
 ---
 
@@ -70,7 +70,7 @@ https://api.census.gov/data/key_signup.html
 Paste your key into the space below and run the function `census_api_key`
 
 ```{r}
-census_api_key("YOUR KEY GOES HERE", overwrite = TRUE)
+census_api_key("5af8c3de403f054574b75e677bd81ea869925945", overwrite = TRUE)
 ```
 
 # Load Variables
@@ -79,7 +79,7 @@ Let's load the Census data dictionary from `tidycensus`
 
 ```{r}
 acs_variable_list <- load_variables(2020, #year
-                                    "acs5", #five year ACS estimates
+                                    "acs5", #five year American Community Survey estimates
                                     cache = TRUE)
 ```
 
@@ -203,7 +203,7 @@ Prompt: Try it yourself - change the color and the alpha.
 ```{r}
 ggplot()+
   geom_sf(data = acs2020,
-          fill = "black", color = "transparent")+
+          fill = "black", color = "transparent") +
   geom_sf(data = philly_311,
           color = "yellow", alpha = 0.2,
           size = .5)+
@@ -279,6 +279,7 @@ The `st_area` function is basically "calculate geometry."
 ```{r}
 acs2020_incidents <- acs2020_incidents %>%
   mutate(area = st_area(.))
+str(acs2020_incidents)
 ```
 
 
@@ -288,6 +289,8 @@ When you do geoprocessing in R, you get area and distance measurements IN THE LI
 acs2020_incidents <- acs2020_incidents %>%
   mutate(area_sqmi = as.numeric(area/27878555.87))
 ```
+
+
 
 # Mapping and analysis workshop
 
@@ -302,6 +305,12 @@ Using the `mutate` command, create a column with a normalized measures of incide
 - `n_per_10k` (incidents per 10,000 people) or 
 - `n_per_sqmi` and (incidents per square mile)
 
+```{r}
+acs2020_incidents <- acs2020_incidents %>%
+  mutate(n_per_sqmi = as.numeric(n/area_sqmi))
+```
+
+
 ## Chunk 2 & 3 - Getting Some Spatial Data for Mapping
 
 Get some hydrology data from the `tigris` package to make the map so nice.
@@ -314,7 +323,31 @@ When you have those data, make sure they are projected to 2272 using `st_crs`, i
 
 Download the Philly Council districts using `st_read` and be ready to lay those on top.
 
-They are hosted at this URL - philly_311 <- st_read("https://raw.githubusercontent.com/mafichman/cpln_0795/main/data/philly_311.geojson")
+They are hosted at this URL - council_dist <- st_read("https://raw.githubusercontent.com/mafichman/cpln_0795/main/data/council_dist.geojson")
+
+```{r}
+# Chunk 2
+# Get hydrology data
+philly_water <- area_water(state = "PA", county = "Philadelphia", class = "sf", year = 2020)
+
+st_crs(philly_water)
+
+philly_water <- philly_water %>%
+  st_transform(crs = 2272)
+
+st_crs(philly_water)
+```
+
+```{r}
+council_dist <- st_read("https://raw.githubusercontent.com/mafichman/cpln_0795/main/data/council_dist.geojson")
+
+st_crs(council_dist)
+
+council_dist <- council_dist %>%
+  st_transform(crs = 2272)
+
+st_crs(council_dist)
+```
 
 # Chunks 4 & 5
 
@@ -327,6 +360,24 @@ Change the color ramp if possible
 Add council districts on top with the fill set to transparent
 
 Add some annotation - what are your observations regarding the spatial process of these 311 calls?
+
+```{r}
+ggplot() +
+  geom_sf(data = acs2020_incidents,
+          aes(fill = n)) +
+  geom_sf(data = philly_water, fill = "skyblue") +
+  geom_sf(data = council_dist, fill = "transparent", color = "grey") +
+  labs(
+    fill = "Incidents",        # Legend title for pct_wht
+    title = "Incidents by tract",
+    subtitle = "with water features",
+    caption = "Data: American Community Survey 5-year estimates"
+  ) +
+  scale_fill_viridis_c(option = "A") +  
+  theme_minimal()
+```
+
+
 
 # Knit the markdown and push it to your Github repo
 
